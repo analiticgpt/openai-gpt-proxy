@@ -8,7 +8,17 @@ app.use(express.json());
 const OPENAI_KEY = process.env.OPENAI_KEY;
 
 app.post("/gpt", async (req, res) => {
-  const { prompt } = req.body;
+  // Получаем prompt либо из req.body.prompt, либо из messages
+  let prompt = "";
+
+  if (typeof req.body.prompt === "string") {
+    prompt = req.body.prompt;
+  } else if (Array.isArray(req.body.messages)) {
+    // Берём последнее сообщение пользователя из массива messages
+    const userMsg = [...req.body.messages].reverse().find(msg => msg.role === "user");
+    prompt = userMsg ? userMsg.content : "";
+  }
+
   if (!OPENAI_KEY) {
     return res.status(500).json({ error: "No OPENAI_KEY set" });
   }
