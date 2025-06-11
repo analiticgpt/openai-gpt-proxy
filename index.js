@@ -1,30 +1,31 @@
-import express from "express";
-import fetch from "node-fetch";
-import cors from "cors";
+const express = require('express');
+const cors = require('cors');
+const fetch = require('node-fetch');
 
 const app = express();
+
 app.use(cors());
 app.use(express.json());
 
-app.post("/gpt", async (req, res) => {
-  const { prompt } = req.body;
-  const apiKey = process.env.OPENAI_API_KEY;
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Authorization": "Bearer " + apiKey,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "gpt-3.5-turbo",
-      messages: [
-        { role: "system", content: "Ты дружелюбный ассистент." },
-        { role: "user", content: prompt }
-      ]
-    }),
-  });
-  const data = await response.json();
-  res.json(data);
+app.post('/gpt', async (req, res) => {
+  try {
+    const openaiRes = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + process.env.OPENAI_API_KEY,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(req.body)
+    });
+
+    const data = await openaiRes.json();
+    res.json(data);
+  } catch (e) {
+    res.status(500).json({ error: e.toString() });
+  }
 });
 
-app.listen(3000, () => console.log("Proxy for OpenAI ready!"));
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Proxy for OpenAI ready on port ${PORT}`);
+});
