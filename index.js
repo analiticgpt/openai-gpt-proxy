@@ -7,11 +7,13 @@ app.use(express.json());
 
 const OPENAI_KEY = process.env.OPENAI_KEY;
 
-// Прокси endpoint
 app.post("/gpt", async (req, res) => {
   const { prompt } = req.body;
   if (!OPENAI_KEY) {
     return res.status(500).json({ error: "No OPENAI_KEY set" });
+  }
+  if (!prompt || typeof prompt !== "string") {
+    return res.status(400).json({ error: "No prompt provided" });
   }
   try {
     const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
