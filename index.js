@@ -44,7 +44,7 @@ app.post("/gpt", async (req, res) => {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: "gpt-4o",
+        model: "gpt-4.1-nano",
         messages: chatMessages,
         temperature: 0.7,
         max_tokens: 100
