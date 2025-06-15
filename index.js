@@ -30,6 +30,25 @@ app.post("/gpt", async (req, res) => {
       return res.status(400).json({ error: "Invalid message history" });
     }
 
+    // 👇 Контекстная проверка первого сообщения
+    if (messages.length === 1) {
+      const userFirstMessage = messages[0]?.content?.toLowerCase() || "";
+      const isGreeting = /привет|здравств|добрый|можно|алло|слушаю/i.test(userFirstMessage);
+      const isNeutral = userFirstMessage.length < 20;
+
+      const reply = isGreeting || isNeutral
+        ? `<prosody rate="medium">Рада познакомиться. <break time="300ms" /> Можете рассказать, по какому вопросу обратились?</prosody>`
+        : null;
+
+      if (reply) {
+        return res.json({
+          choices: [
+            { message: { role: "assistant", content: reply } }
+          ]
+        });
+      }
+    }
+
     const recentMessages = messages.slice(-10);
 
     const chatMessages = [
@@ -52,8 +71,8 @@ app.post("/gpt", async (req, res) => {
     });
 
     const data = await openaiRes.json();
-
     return res.json(data);
+
   } catch (e) {
     res.status(500).json({ error: "OpenAI Proxy error", details: e.message });
   }
