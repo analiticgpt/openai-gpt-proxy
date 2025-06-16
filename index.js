@@ -19,41 +19,37 @@ const SYSTEM_PROMPT = `
 Используй паузы и мягкую интонацию: <break time="400ms" />, <emphasis level="moderate">, <prosody rate="medium">.
 В конце — предложи запись: “Могу записать вас на бесплатную консультацию — юрист всё разложит по полочкам.”
 Заверши разговор: “<break time='300ms' /> Записала. Ждите звонка с номера 8 800 600 38 23.”
+Если видишь, что человек готов — добавь [openLeadForm], чтобы я мог открыть форму на сайте.
 Никогда не упоминай, что ты ИИ или ассистент. Ты — Анна, живой человек.
 `;
 
 app.post("/gpt", async (req, res) => {
   try {
-    let messages = req.body.messages || [];
+    const messages = Array.isArray(req.body.messages) ? req.body.messages : [];
 
-    if (!Array.isArray(messages)) {
-      return res.status(400).json({ error: "Invalid message history" });
-    }
-
-    // 👇 Контекстная проверка первого сообщения
+    // Проверка первого короткого сообщения
     if (messages.length === 1) {
-      const userFirstMessage = messages[0]?.content?.toLowerCase() || "";
-      const isGreeting = /привет|здравств|добрый|можно|алло|слушаю/i.test(userFirstMessage);
-      const isNeutral = userFirstMessage.length < 20;
+      const msg = messages[0]?.content?.toLowerCase() || "";
+      const isGreeting = /привет|здравств|добрый|можно|алло|слушаю/i.test(msg);
+      const isNeutral = msg.length < 20;
 
-      const reply = isGreeting || isNeutral
-        ? `<prosody rate="medium">Рада познакомиться. <break time="300ms" /> Можете рассказать, по какому вопросу обратились?</prosody>`
-        : null;
-
-      if (reply) {
+      if (isGreeting || isNeutral) {
         return res.json({
           choices: [
-            { message: { role: "assistant", content: reply } }
+            {
+              message: {
+                role: "assistant",
+                content: `<prosody rate="medium">Рада познакомиться. <break time="300ms" /> Можете рассказать, по какому вопросу обратились?</prosody>`
+              }
+            }
           ]
         });
       }
     }
 
-    const recentMessages = messages.slice(-10);
-
     const chatMessages = [
       { role: "system", content: SYSTEM_PROMPT },
-      ...recentMessages
+      ...messages.slice(-10)
     ];
 
     const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -66,15 +62,69 @@ app.post("/gpt", async (req, res) => {
         model: "gpt-4.1-nano",
         messages: chatMessages,
         temperature: 0.7,
+        max_tokens: 200
+      })
+    });
+
+    const data = await openaiRes.json();
+
+    // Очистка текста от служебного маркера
+    const fullContent = data.choices?.[0]?.message?.content || "";
+    const strippedContent = fullContent.replace("[openLeadForm]", "").trim();
+
+    res.json({
+      choices: [
+        {
+          message: {
+            role: "assistant",
+            content: strippedContent,
+            triggerForm: fullContent.includes("[openLeadForm]")
+          }
+        }
+      ]
+    });
+
+  } catch (e) {
+    console.error("❌ GPT proxy error:", e);
+    res.status(500).json({ error: "OpenAI Proxy error", details: e.message });
+  }
+});
+
+app.post("/lead", async (req, res) => {
+  try {
+    const { name, phone } = req.body;
+
+    if (!name || !phone) {
+      return res.status(400).json({ error: "Имя и телефон обязательны" });
+    }
+
+    const gptLeadMessage = [
+      { role: "system", content: SYSTEM_PROMPT },
+      { role: "user", content: `Пользователь отправил форму: Имя: ${name}, Телефон: ${phone}` }
+    ];
+
+    const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${OPENAI_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: "gpt-4.1-nano",
+        messages: gptLeadMessage,
+        temperature: 0.6,
         max_tokens: 100
       })
     });
 
     const data = await openaiRes.json();
-    return res.json(data);
+    const text = data.choices?.[0]?.message?.content || "Спасибо, форма получена.";
 
-  } catch (e) {
-    res.status(500).json({ error: "OpenAI Proxy error", details: e.message });
+    res.json({ message: text });
+
+  } catch (err) {
+    console.error("❌ Ошибка обработки формы:", err);
+    res.status(500).json({ error: "Ошибка сервера при получении формы" });
   }
 });
 
