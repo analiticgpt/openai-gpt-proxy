@@ -1,6 +1,6 @@
-import express from "express";
-import cors from "cors";
-import fetch from "node-fetch";
+const express = require("express");
+const cors = require("cors");
+const fetch = require("node-fetch");
 
 const app = express();
 app.use(cors());
@@ -8,7 +8,7 @@ app.use(express.json());
 
 const OPENAI_KEY = process.env.OPENAI_KEY;
 
-const SYSTEM_PROMPT = 
+const SYSTEM_PROMPT = `
 Ты — Анна, сотрудник колл-центра юридической компании, которая помогает людям списать долги через банкротство.
 Ты включаешься, когда человек уже обратился — голосом или сообщением.
 Разговаривай по-человечески: тепло, просто, по делу. Неформально, но с уважением.
@@ -21,13 +21,12 @@ const SYSTEM_PROMPT =
 Заверши разговор: “<break time='300ms' /> Записала. Ждите звонка с номера 8 800 600 38 23.”
 Если видишь, что человек готов — добавь [openLeadForm], чтобы я мог открыть форму на сайте.
 Никогда не упоминай, что ты ИИ или ассистент. Ты — Анна, живой человек.
-;
+`;
 
 app.post("/gpt", async (req, res) => {
   try {
     const messages = Array.isArray(req.body.messages) ? req.body.messages : [];
 
-    // Проверка первого короткого сообщения
     if (messages.length === 1) {
       const msg = messages[0]?.content?.toLowerCase() || "";
       const isGreeting = /привет|здравств|добрый|можно|алло|слушаю/i.test(msg);
@@ -39,7 +38,7 @@ app.post("/gpt", async (req, res) => {
             {
               message: {
                 role: "assistant",
-                content: <prosody rate="medium">Рада познакомиться. <break time="300ms" /> Можете рассказать, по какому вопросу обратились?</prosody>
+                content: "<prosody rate='medium'>Рада познакомиться. <break time='300ms' /> Можете рассказать, по какому вопросу обратились?</prosody>"
               }
             }
           ]
@@ -55,7 +54,7 @@ app.post("/gpt", async (req, res) => {
     const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Authorization": Bearer ${OPENAI_KEY},
+        "Authorization": `Bearer ${OPENAI_KEY}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
@@ -67,8 +66,6 @@ app.post("/gpt", async (req, res) => {
     });
 
     const data = await openaiRes.json();
-
-    // Очистка текста от служебного маркера
     const fullContent = data.choices?.[0]?.message?.content || "";
     const strippedContent = fullContent.replace("[openLeadForm]", "").trim();
 
@@ -100,13 +97,13 @@ app.post("/lead", async (req, res) => {
 
     const gptLeadMessage = [
       { role: "system", content: SYSTEM_PROMPT },
-      { role: "user", content: Пользователь отправил форму: Имя: ${name}, Телефон: ${phone} }
+      { role: "user", content: `Пользователь отправил форму: Имя: ${name}, Телефон: ${phone}` }
     ];
 
     const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Authorization": Bearer ${OPENAI_KEY},
+        "Authorization": `Bearer ${OPENAI_KEY}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
