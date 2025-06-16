@@ -39,7 +39,8 @@ app.post("/gpt", async (req, res) => {
             {
               message: {
                 role: "assistant",
-                content: `<prosody rate="medium">Рада познакомиться. <break time="300ms" /> Можете рассказать, по какому вопросу обратились?</prosody>`
+                content: `<prosody rate="medium">Рада познакомиться. <break time="300ms" /> Можете рассказать, по какому вопросу обратились?</prosody>`,
+                triggerForm: false
               }
             }
           ]
@@ -71,13 +72,16 @@ app.post("/gpt", async (req, res) => {
     const fullContent = data.choices?.[0]?.message?.content || "";
     const strippedContent = fullContent.replace("[openLeadForm]", "").trim();
 
+    // Всегда передаём триггер для открытия формы
+    const triggerForm = fullContent.includes("[openLeadForm]");
+
     res.json({
       choices: [
         {
           message: {
             role: "assistant",
             content: strippedContent,
-            triggerForm: fullContent.includes("[openLeadForm]")
+            triggerForm
           }
         }
       ]
