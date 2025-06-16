@@ -1,6 +1,6 @@
-const express = require("express");
-const cors = require("cors");
-const fetch = require("node-fetch");
+import express from "express";
+import cors from "cors";
+import fetch from "node-fetch";
 
 const app = express();
 app.use(cors());
@@ -27,6 +27,7 @@ app.post("/gpt", async (req, res) => {
   try {
     const messages = Array.isArray(req.body.messages) ? req.body.messages : [];
 
+    // Приветствие при первом коротком сообщении
     if (messages.length === 1) {
       const msg = messages[0]?.content?.toLowerCase() || "";
       const isGreeting = /привет|здравств|добрый|можно|алло|слушаю/i.test(msg);
@@ -38,7 +39,7 @@ app.post("/gpt", async (req, res) => {
             {
               message: {
                 role: "assistant",
-                content: "<prosody rate='medium'>Рада познакомиться. <break time='300ms' /> Можете рассказать, по какому вопросу обратились?</prosody>"
+                content: `<prosody rate="medium">Рада познакомиться. <break time="300ms" /> Можете рассказать, по какому вопросу обратились?</prosody>`
               }
             }
           ]
@@ -66,6 +67,7 @@ app.post("/gpt", async (req, res) => {
     });
 
     const data = await openaiRes.json();
+
     const fullContent = data.choices?.[0]?.message?.content || "";
     const strippedContent = fullContent.replace("[openLeadForm]", "").trim();
 
