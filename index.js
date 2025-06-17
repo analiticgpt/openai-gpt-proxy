@@ -89,4 +89,49 @@ app.post("/gpt", async (req, res) => {
 
   } catch (e) {
     console.error("❌ GPT proxy error:", e);
-    res.status(500).
+    res.status(500).json({ error: "OpenAI Proxy error", details: e.message });
+  }
+});
+
+app.post("/lead", async (req, res) => {
+  try {
+    const { name, phone } = req.body;
+
+    if (!name || !phone) {
+      return res.status(400).json({ error: "Имя и телефон обязательны" });
+    }
+
+    const gptLeadMessage = [
+      { role: "system", content: SYSTEM_PROMPT },
+      { role: "user", content: `Пользователь отправил форму: Имя: ${name}, Телефон: ${phone}` }
+    ];
+
+    const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${OPENAI_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: "gpt-4.1-nano",
+        messages: gptLeadMessage,
+        temperature: 0.6,
+        max_tokens: 100
+      })
+    });
+
+    const data = await openaiRes.json();
+    const text = data.choices?.[0]?.message?.content || "Спасибо, форма получена.";
+
+    res.json({ message: text });
+
+  } catch (err) {
+    console.error("❌ Ошибка обработки формы:", err);
+    res.status(500).json({ error: "Ошибка сервера при получении формы" });
+  }
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log("✅ GPT voice server запущен на порту", PORT);
+});
